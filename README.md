@@ -7,7 +7,7 @@ This is a collaborative game dev experiment where one game gets passed around an
 1. Clone or pull the repository  
 2. Create a new branch for your changes (call it your name)  
 3. Do your thing  
-   - Add a feature (can range from somthing very simple to some enormous 2GBs of code ) 
+   - Add a feature (can range from something very simple to some enormous 2GBs of code)
    - Improve something  
    - Break something and fix it better  
    - Be creative  
@@ -17,6 +17,8 @@ This is a collaborative game dev experiment where one game gets passed around an
 7. Pull again later and see how the game has changed  (optional)
 
 That is it. Keep it fun and keep it moving.
+
+For the practical "how do I actually open a PR" details, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Rules and guidelines
 
@@ -29,12 +31,16 @@ That is it. Keep it fun and keep it moving.
 
 ## Tech
 
-- Language: Python  
+- Language: Python 3.9+
 - Library: pygame 2.5+
 
 ## How to run
 
 ```bash
+# (optional but recommended) create a virtual environment
+python -m venv venv
+source venv/bin/activate        # on Windows: venv\Scripts\activate
+
 pip install -r requirements.txt
 python main.py
 ```
