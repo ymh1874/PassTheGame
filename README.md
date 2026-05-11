@@ -18,6 +18,8 @@ This is a collaborative game dev experiment where one game gets passed around an
 
 That is it. Keep it fun and keep it moving.
 
+For the practical "how do I actually open a PR" details, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Rules and guidelines
 
 - Keep your changes reasonable so others can build on them  
