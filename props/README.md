@@ -11,7 +11,7 @@ otherwise it falls back to the built-in drawn versions.
 All images should be **PNG with an alpha channel** so transparency works
 correctly against the sky background.
 
-*Note: There are no real rules as long your code works*
+*Note: There are no real rules as long as your code works*
 
 Future contributors: add your own prop filenames to this table when you
 introduce new sprites.

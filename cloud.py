@@ -116,7 +116,8 @@ class Cloud(pygame.sprite.Sprite):
         self.rect.x = max(0, min(self.rect.x + dx, SCREEN_W - self.rect.width))
         self.rect.y = max(0, min(self.rect.y + dy, SCREEN_H - self.rect.height))
 
-        # keep raindrops tethered to cloud x-position when it moves
+        # keep raindrops tethered to the cloud when it moves
         if self.raining and (dx or dy):
             for drop in self.raindrops:
                 drop.x += dx
+                drop.y += dy

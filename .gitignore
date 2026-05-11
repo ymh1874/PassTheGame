@@ -4,5 +4,12 @@ __pycache__/
 *.pyo
 *.pyd
 
+# virtual environments
 venv/
-.env/
+.venv/
+env/
+.env
+
+# OS
+.DS_Store
+Thumbs.db

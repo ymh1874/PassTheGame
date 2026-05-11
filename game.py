@@ -32,7 +32,7 @@ class Game:
     def run(self):
         running = True
         while running:
-            dt = self.clock.tick(FPS)
+            self.clock.tick(FPS)
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
