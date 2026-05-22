@@ -96,8 +96,8 @@ Add your name and 1–2 lines about what you added below.
 - **Nancy**  
   Created the base game: blue sky, a movable cloud, rain on click, and a sun that darkens the sky when covered.
 
-- **Your Name Here**  
-  What you added or changed
+- **Minh**  
+  Added farming: buying/planting seeds, keep plant alive with rain and sun, sell products for profit.
 
 ---
 
