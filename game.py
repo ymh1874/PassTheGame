@@ -8,8 +8,9 @@ from settings import (
     GROUND_COLOR,
     WATER_GAIN_RAIN, WATER_LOSS, SUN_GAIN_CLEAR,
     SUN_LOSS, OVERWATER_THRESHOLD, OVERSUN_THRESHOLD,
-    PLANT_BAD_FRAMES_TO_DIE, PLANT_BAD_RECOVERY_RATE,
+    PLANT_BAD_SECONDS_TO_DIE, PLANT_BAD_RECOVERY_RATE,
     PLANT_GROWTH_RATE_GOOD, PLANT_GROWTH_RATE_BAD,
+    PLANT_SPRITE_W, PLANT_SPRITE_H,
 )
 from cloud import Cloud
 from sun import Sun
@@ -49,6 +50,7 @@ class Game:
             0, SCREEN_H - self._ground_height, self._field_rect.width, self._ground_height,
         )
 
+        # Add new plants by instantiating PlantType subclasses here.
         self.seeds: list[PlantType] = [Carrot(), Lettuce(), Tomato()]
         self.money = 20
         self.inventory: dict[str, int] = {}
@@ -57,11 +59,20 @@ class Game:
         self.selected_seed: PlantType | None = None
         self._seed_buttons: list[tuple[PlantType, pygame.Rect]] = []
         self._seed_icons: dict[str, pygame.Surface] = {}
+        self._plant_phase_icons: dict[str, pygame.Surface] = {}
         self._hover_slot: PlantSlot | None = None
         self._sell_button = pygame.Rect(0, 0, 0, 0)
+        self._money_flash_timer = 0
+        self._ui_panel_image: pygame.Surface | None = None
+        self._coin_icon: pygame.Surface | None = None
+        self._dead_plant_image: pygame.Surface | None = None
 
         self.slots = self._create_slots()
         self._load_seed_icons()
+        self._load_ui_panel()
+        self._load_coin_icon()
+        self._load_plant_phases()
+        self._load_dead_plant()
 
     # ── main loop ─────────────────────────────────────────────────────────────
     def run(self):
@@ -83,6 +94,9 @@ class Game:
     # ── update ────────────────────────────────────────────────────────────────
     def _update(self):
         self.all_sprites.update()
+
+        if self._money_flash_timer > 0:
+            self._money_flash_timer -= 1
 
         # lerp sky colour toward target
         target = SKY_DARK if self.cloud.covers_sun(self.sun.circle_rect) else SKY_DAY
@@ -140,6 +154,7 @@ class Game:
     def _update_plants(self):
         raining = self.cloud.raining
         sun_clear = not self.cloud.covers_sun(self.sun.circle_rect)
+        dt = self.clock.get_time() / 1000.0
         for slot in self.slots:
             cloud_over_slot = self.cloud.rect.left <= slot.rect.centerx <= self.cloud.rect.right
             water_delta = -WATER_LOSS
@@ -153,10 +168,11 @@ class Game:
                 sun_delta,
                 water_kill=OVERWATER_THRESHOLD,
                 sun_kill=OVERSUN_THRESHOLD,
-                bad_frames_to_die=PLANT_BAD_FRAMES_TO_DIE,
+                bad_seconds_to_die=PLANT_BAD_SECONDS_TO_DIE,
                 bad_recovery_rate=PLANT_BAD_RECOVERY_RATE,
                 growth_rate_good=PLANT_GROWTH_RATE_GOOD,
                 growth_rate_bad=PLANT_GROWTH_RATE_BAD,
+                dt=dt,
             )
 
     def _draw_ground(self):
@@ -175,22 +191,42 @@ class Game:
 
     def _draw_slots(self):
         for slot in self.slots:
+            phase_image = self._phase_image_for_slot(slot)
             slot.draw(
                 self.screen,
                 SLOT_COLOR,
                 SLOT_BORDER_COLOR,
+                phase_image=phase_image,
+                dead_image=self._dead_plant_image,
             )
 
     def _draw_ui_panel(self):
         panel_rect = pygame.Rect(self._field_rect.width, 0, UI_PANEL_W, SCREEN_H)
-        pygame.draw.rect(self.screen, (40, 45, 55), panel_rect)
-        pygame.draw.line(self.screen, (70, 75, 90), (panel_rect.left, 0), (panel_rect.left, SCREEN_H), 2)
+        if self._ui_panel_image:
+            self.screen.blit(self._ui_panel_image, panel_rect)
+        else:
+            pygame.draw.rect(self.screen, (40, 45, 55), panel_rect)
+            pygame.draw.line(self.screen, (70, 75, 90), (panel_rect.left, 0), (panel_rect.left, SCREEN_H), 2)
 
         title = self._font.render("Seeds", True, (230, 230, 230))
         self.screen.blit(title, (panel_rect.left + 16, 16))
 
-        money = self._font.render(f"Money: ${self.money}", True, (245, 230, 120))
-        self.screen.blit(money, (panel_rect.left + 16, 44))
+        money_color = (245, 230, 120)
+        if self._money_flash_timer > 0:
+            money_color = (210, 70, 70)
+        money_text = f"{self.money}"
+        money = self._font.render(money_text, True, money_color)
+        money_x = panel_rect.left + 16
+        money_y = 44
+        if self._coin_icon:
+            icon_rect = self._coin_icon.get_rect(midleft=(money_x, money_y + 12))
+            self.screen.blit(self._coin_icon, icon_rect)
+            money_x = icon_rect.right + 8
+        else:
+            label = self._font.render("Money:", True, money_color)
+            self.screen.blit(label, (money_x, money_y))
+            money_x += label.get_width() + 6
+        self.screen.blit(money, (money_x, money_y))
 
         self._seed_buttons = []
         y = 86
@@ -214,9 +250,19 @@ class Game:
                 fallback = self._small_font.render(seed.name[0], True, (235, 235, 235))
                 self.screen.blit(fallback, (rect.centerx - 4, rect.centery - 10))
 
-            cost = self._small_font.render(f"${seed.cost}", True, (230, 230, 230))
-            cost_rect = cost.get_rect(center=(rect.centerx, rect.bottom - 10))
-            self.screen.blit(cost, cost_rect)
+            cost_text = self._small_font.render(str(seed.cost), True, (230, 230, 230))
+            cost_y = rect.bottom - 12
+            if self._coin_icon:
+                coin = pygame.transform.smoothscale(self._coin_icon, (12, 12))
+                coin_rect = coin.get_rect(center=(rect.centerx - 8, cost_y + 2))
+                self.screen.blit(coin, coin_rect)
+                cost_rect = cost_text.get_rect(midleft=(coin_rect.right + 4, coin_rect.centery))
+            else:
+                cost_prefix = self._small_font.render("$", True, (230, 230, 230))
+                prefix_rect = cost_prefix.get_rect(center=(rect.centerx - 6, cost_y + 2))
+                self.screen.blit(cost_prefix, prefix_rect)
+                cost_rect = cost_text.get_rect(midleft=(prefix_rect.right + 2, prefix_rect.centery))
+            self.screen.blit(cost_text, cost_rect)
 
             self._seed_buttons.append((seed, rect))
             y += button_size + padding
@@ -283,9 +329,12 @@ class Game:
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             seed = self._seed_at_pos(event.pos)
-            if seed and self.money >= seed.cost:
-                self.selected_seed = seed
-                self.drag_seed = seed
+            if seed:
+                if self.money >= seed.cost:
+                    self.selected_seed = seed
+                    self.drag_seed = seed
+                else:
+                    self._money_flash_timer = 20
                 return
 
             if self._sell_button.collidepoint(event.pos):
@@ -325,6 +374,48 @@ class Game:
                 continue
             raw = pygame.image.load(path).convert_alpha()
             self._seed_icons[seed.icon_filename] = pygame.transform.smoothscale(raw, (32, 32))
+
+    def _load_ui_panel(self):
+        path = os.path.join(PROPS_DIR, "ui_panel.png")
+        if not os.path.exists(path):
+            return
+        raw = pygame.image.load(path).convert_alpha()
+        self._ui_panel_image = pygame.transform.smoothscale(raw, (UI_PANEL_W, SCREEN_H))
+
+    def _load_coin_icon(self):
+        path = os.path.join(PROPS_DIR, "coin.png")
+        if not os.path.exists(path):
+            return
+        raw = pygame.image.load(path).convert_alpha()
+        self._coin_icon = pygame.transform.smoothscale(raw, (20, 20))
+
+    def _load_dead_plant(self):
+        path = os.path.join(PROPS_DIR, "dead_plant.png")
+        if not os.path.exists(path):
+            return
+        raw = pygame.image.load(path).convert_alpha()
+        self._dead_plant_image = pygame.transform.smoothscale(raw, (PLANT_SPRITE_W, PLANT_SPRITE_H))
+
+    def _load_plant_phases(self):
+        for seed in self.seeds:
+            for filename in seed.phase_filenames:
+                if filename in self._plant_phase_icons:
+                    continue
+                path = os.path.join(PROPS_DIR, filename)
+                if not os.path.exists(path):
+                    continue
+                raw = pygame.image.load(path).convert_alpha()
+                self._plant_phase_icons[filename] = pygame.transform.smoothscale(raw, (PLANT_SPRITE_W, PLANT_SPRITE_H))
+
+    def _phase_image_for_slot(self, slot: PlantSlot) -> pygame.Surface | None:
+        if not slot.seed:
+            return None
+        stage = min(slot.growth_stage, slot.seed.growth_stages)
+        index = min(stage, len(slot.seed.phase_filenames)) - 1
+        if index < 0:
+            return None
+        filename = slot.seed.phase_filenames[index]
+        return self._plant_phase_icons.get(filename)
 
     def _slot_at_pos(self, pos: tuple[int, int]) -> PlantSlot | None:
         if pos[0] > self._field_rect.width:

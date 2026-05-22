@@ -5,6 +5,15 @@ from plants import PlantType
 
 
 class PlantSlot:
+    """Runtime state for a single plant slot.
+
+    Interface used by Game:
+    - plant(seed): assign a PlantType and reset stats
+    - clear(): remove plant and reset stats
+    - update(...): evolve water/sun/growth and death state
+    - draw(...): render slot and plant visuals
+    - stats_lines(): tooltip content
+    """
     def __init__(self, rect: pygame.Rect):
         self.rect = rect
         self.seed: PlantType | None = None
@@ -25,7 +34,7 @@ class PlantSlot:
 
     def plant(self, seed: PlantType):
         self.seed = seed
-        self.growth_stage = 0
+        self.growth_stage = 1
         self._growth_frames = 0
         self.water = 50.0
         self.sun = 50.0
@@ -48,10 +57,11 @@ class PlantSlot:
         *,
         water_kill: float,
         sun_kill: float,
-        bad_frames_to_die: float,
+        bad_seconds_to_die: float,
         bad_recovery_rate: float,
         growth_rate_good: float,
         growth_rate_bad: float,
+        dt: float,
     ):
         self.water = max(0.0, min(100.0, self.water + water_delta))
         self.sun = max(0.0, min(100.0, self.sun + sun_delta))
@@ -61,17 +71,18 @@ class PlantSlot:
         in_range = self.seed.water_min <= self.water <= self.seed.water_max and self.seed.sun_min <= self.sun <= self.seed.sun_max
         in_over = self.water >= water_kill or self.sun >= sun_kill
         if in_range:
-            self._bad_frames = max(0.0, self._bad_frames - bad_recovery_rate)
-            self._growth_frames += growth_rate_good
+            self._bad_frames = max(0.0, self._bad_frames - bad_recovery_rate * dt)
+            self._growth_frames += growth_rate_good * dt
         else:
-            self._bad_frames += 1.0
-            self._growth_frames += growth_rate_bad
+            rate = 2.0 if in_over else 1.0
+            self._bad_frames += rate * dt
+            self._growth_frames += growth_rate_bad * dt
 
-        if self._bad_frames >= bad_frames_to_die:
+        if self._bad_frames >= bad_seconds_to_die:
             self.dead = True
             return
 
-        if self._growth_frames >= self.seed.frames_per_stage:
+        if self._growth_frames >= self.seed.seconds_per_stage:
             self._growth_frames = 0
             self.growth_stage += 1
 
@@ -80,6 +91,9 @@ class PlantSlot:
         surface: pygame.Surface,
         empty_color: tuple[int, int, int],
         border_color: tuple[int, int, int],
+        *,
+        phase_image: pygame.Surface | None = None,
+        dead_image: pygame.Surface | None = None,
     ):
         pygame.draw.rect(surface, empty_color, self.rect, border_radius=4)
         pygame.draw.rect(surface, border_color, self.rect, 2, border_radius=4)
@@ -101,8 +115,15 @@ class PlantSlot:
             color = (min(color[0] + 30, 255), min(color[1] + 30, 255), min(color[2] + 30, 255))
 
         stem_color = (80, 120, 80) if not self.dead else (80, 80, 80)
-        pygame.draw.line(surface, stem_color, (cx, self.rect.bottom - 6), (cx, cy), 2)
-        pygame.draw.circle(surface, color, (cx, cy), size)
+        if self.dead and dead_image:
+            img_rect = dead_image.get_rect(midbottom=(cx, self.rect.bottom - 4))
+            surface.blit(dead_image, img_rect)
+        elif phase_image:
+            img_rect = phase_image.get_rect(midbottom=(cx, self.rect.bottom - 4))
+            surface.blit(phase_image, img_rect)
+        else:
+            pygame.draw.line(surface, stem_color, (cx, self.rect.bottom - 6), (cx, cy), 2)
+            pygame.draw.circle(surface, color, (cx, cy), size)
 
         self._draw_minibars(surface)
 

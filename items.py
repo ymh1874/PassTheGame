@@ -10,7 +10,7 @@ class Item:
 
 
 ITEMS: dict[str, Item] = {
-    "Carrot": Item(name="Carrot", sell_price=4),
-    "Lettuce": Item(name="Lettuce", sell_price=4),
-    "Tomato": Item(name="Tomato", sell_price=5),
+    "Carrot": Item(name="Carrot", sell_price=7),
+    "Lettuce": Item(name="Lettuce", sell_price=10),
+    "Tomato": Item(name="Tomato", sell_price=15),
 }
