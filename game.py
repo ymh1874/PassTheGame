@@ -18,8 +18,11 @@ from sun import Sun
 from moon import Moon
 from stars import Stars
 from farming import PlantSlot
-from plants import PlantType, Carrot, Lettuce, Tomato, Apple
+from plants import PlantType, Carrot, Lettuce, Tomato, Apple, StormSeed
 from items import ITEMS
+from storm_titan import StormTitan
+from cyclone_titan import CycloneTitan
+from critters import make_squirrel, make_snake
 
 PROPS_DIR = os.path.join(os.path.dirname(__file__), "props")
 
@@ -41,6 +44,12 @@ class Game:
         self.moon = Moon()
         self.stars = Stars()
         self._darkness = 0.0
+
+        # ── boss ─────────────────────────────────────────────────────────────
+        self.storm_titan = StormTitan()
+        self.cyclone_titan = CycloneTitan()
+        # Priority order when multiple bosses are ready to spawn.
+        self._bosses = [self.cyclone_titan, self.storm_titan]
         
         #controls for cloud2
         WASD = {
@@ -68,8 +77,13 @@ class Game:
             0, SCREEN_H - self._ground_height, self._field_rect.width, self._ground_height,
         )
 
+        # ── critters ─────────────────────────────────────────────────────────
+        self.squirrel = make_squirrel()
+        self.snake = make_snake()
+        self._critters = [self.squirrel, self.snake]
+
         # Add new plants by instantiating PlantType subclasses here.
-        self.seeds: list[PlantType] = [Carrot(), Lettuce(), Tomato(), Apple()]
+        self.seeds: list[PlantType] = [Carrot(), Lettuce(), Tomato(), Apple(), StormSeed()]
         self.money = 20
         self.inventory: dict[str, int] = {}
         self.items = ITEMS
@@ -105,6 +119,17 @@ class Game:
                     running = False
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
                     self.paused = not self.paused
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_b:
+                    self._toggle_boss(self.storm_titan)
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_c:
+                    self._toggle_boss(self.cyclone_titan)
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_v:
+                    self.squirrel.force_spawn(field_rect=self._field_rect, ground_rect=self._ground_rect)
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_n:
+                    self.snake.force_spawn(field_rect=self._field_rect, ground_rect=self._ground_rect)
+
+                if self._handle_critter_event(event):
+                    continue
                 if not self.paused:
                     for c in self.clouds:
                         c.handle_event(event)
@@ -116,6 +141,8 @@ class Game:
     # ── update ────────────────────────────────────────────────────────────────
     def _update(self):
         self.all_sprites.update()
+
+        dt = self.clock.get_time() / 1000.0
 
         if self._money_flash_timer > 0:
             self._money_flash_timer -= 1
@@ -133,8 +160,11 @@ class Game:
         if not self.paused:
             for c in self.clouds:
                 c.update_movement()
+
+            self._update_bosses(dt)
+            self._update_critters(dt)
             self._update_plants()
-        self.stars.update(self.clock.get_time() / 1000.0)
+        self.stars.update(dt)
 
     # ── draw ──────────────────────────────────────────────────────────────────
     def _draw(self):
@@ -149,6 +179,9 @@ class Game:
         if moon_alpha > 0:
             self.moon.image.set_alpha(moon_alpha)
             self.screen.blit(self.moon.image, self.moon.rect)
+
+        self.storm_titan.draw_body(self.screen)
+        self.cyclone_titan.draw_body(self.screen)
         
         for c in self.clouds:
             c.draw_rain(self.screen)
@@ -157,6 +190,16 @@ class Game:
         self._draw_ground()
         self._draw_slots()
         self._draw_shadow()
+        self._draw_critters()
+
+        self.storm_titan.draw_bolt(self.screen)
+        self.storm_titan.draw_warning(self.screen, slots=self.slots)
+
+        self.cyclone_titan.draw_bolt(self.screen)
+        self.cyclone_titan.draw_warning(self.screen, slots=self.slots)
+
+        self._draw_boss_health_bar()
+
         self._draw_ui_panel()
         self._draw_hover_tooltip()
         self._draw_drag_seed()
@@ -174,6 +217,12 @@ class Game:
             "P: pause",
             "ESC: quit",
         ]
+        if self.storm_titan.state == StormTitan.STATE_ACTIVE:
+            hints.append(f"Storm Titan HP: {self.storm_titan.hp}/{self.storm_titan.max_hp}")
+        elif self.storm_titan.state == StormTitan.STATE_RETREATING:
+            hints.append(f"Storm Titan leaves in: {max(0, int(self.storm_titan.seconds_until_leave) + 1)}s")
+        else:
+            hints.append(f"Next Storm Titan: {self._format_mmss(self.storm_titan.seconds_until_spawn)}")
         y = 8
         for hint in hints:
             surf = self._font.render(hint, True, (255, 255, 255))
@@ -181,6 +230,106 @@ class Game:
             self.screen.blit(shadow, (11, y + 1))
             self.screen.blit(surf,   (10, y))
             y += 22
+
+    @staticmethod
+    def _format_mmss(seconds: float) -> str:
+        total = max(0, int(seconds))
+        minutes, secs = divmod(total, 60)
+        hours, minutes = divmod(minutes, 60)
+        if hours:
+            return f"{hours}:{minutes:02d}:{secs:02d}"
+        return f"{minutes}:{secs:02d}"
+
+    # ── bosses ─────────────────────────────────────────────────────────────
+    def _visible_boss(self):
+        for boss in self._bosses:
+            if getattr(boss, "visible", False):
+                return boss
+        return None
+
+    def _toggle_boss(self, boss):
+        if getattr(boss, "visible", False):
+            boss.despawn_now()
+            return
+
+        # Ensure only one boss is on-screen at a time.
+        for other in self._bosses:
+            if other is boss:
+                continue
+            other.despawn_now()
+        boss.force_spawn_now()
+
+    def _update_bosses(self, dt: float) -> None:
+        visible = self._visible_boss()
+        if visible is not None:
+            visible.update_battle(dt, slots=self.slots, clouds=self.clouds)
+            for boss in self._bosses:
+                if boss is visible:
+                    continue
+                boss.tick_spawn_timer(dt)
+        else:
+            # No boss on screen; allow a single boss to spawn.
+            for boss in self._bosses:
+                boss.update_battle(dt, slots=self.slots, clouds=self.clouds)
+                if boss.visible:
+                    break
+
+        # Deliver any boss rewards.
+        for boss in self._bosses:
+            reward = boss.pop_reward()
+            if reward:
+                name, count = reward
+                self.inventory[name] = self.inventory.get(name, 0) + count
+
+    def _draw_boss_health_bar(self) -> None:
+        boss = self._visible_boss()
+        if boss is None:
+            return
+
+        max_hp = max(1, int(getattr(boss, "max_hp", 1)))
+        hp = max(0, int(getattr(boss, "hp", 0)))
+        ratio = max(0.0, min(1.0, hp / max_hp))
+
+        cfg = getattr(boss, "config", None)
+        width = int(getattr(cfg, "health_bar_width", 360))
+        height = int(getattr(cfg, "health_bar_height", 18))
+
+        field_w = self._field_rect.width
+        width = max(180, min(width, field_w - 20))
+        height = max(12, min(height, 32))
+
+        bar = pygame.Rect(0, 0, width, height)
+        bar.midtop = (field_w // 2, 8)
+
+        pygame.draw.rect(self.screen, (20, 20, 20), bar, border_radius=6)
+        inner = bar.inflate(-4, -4)
+        fill_w = int(inner.width * ratio)
+        if fill_w > 0:
+            fill = pygame.Rect(inner.left, inner.top, fill_w, inner.height)
+            pygame.draw.rect(self.screen, (215, 60, 60), fill, border_radius=5)
+        pygame.draw.rect(self.screen, (255, 255, 255), bar, 2, border_radius=6)
+
+    # ── critters ─────────────────────────────────────────────────────────
+    def _update_critters(self, dt: float) -> None:
+        for critter in self._critters:
+            critter.update(dt, slots=self.slots, field_rect=self._field_rect, ground_rect=self._ground_rect)
+
+    def _draw_critters(self) -> None:
+        for critter in self._critters:
+            critter.draw(self.screen)
+
+    def _handle_critter_event(self, event: pygame.event.Event) -> bool:
+        if self.paused:
+            return False
+        if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
+            return False
+        if event.pos[0] > self._field_rect.width:
+            return False
+        for critter in self._critters:
+            if critter.active and critter.rect.collidepoint(event.pos):
+                critter.scare_away(field_rect=self._field_rect)
+                return True
+        return False
 
     def _create_slots(self) -> list[PlantSlot]:
         slots: list[PlantSlot] = []
@@ -279,7 +428,7 @@ class Game:
         x = panel_rect.left + 16
         for seed in self.seeds:
             rect = pygame.Rect(x, y, button_size, button_size)
-            affordable = self.money >= seed.cost
+            affordable = self._can_afford_seed(seed)
             bg = (70, 80, 95) if affordable else (55, 60, 70)
             if self.selected_seed == seed:
                 bg = (90, 110, 130)
@@ -388,7 +537,7 @@ class Game:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             seed = self._seed_at_pos(event.pos)
             if seed:
-                if self.money >= seed.cost:
+                if self._can_afford_seed(seed):
                     self.selected_seed = seed
                     self.drag_seed = seed
                 else:
@@ -416,7 +565,7 @@ class Game:
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             slot = self._slot_at_pos(event.pos)
-            if slot and not slot.planted and self.selected_seed and self.money >= self.selected_seed.cost:
+            if slot and not slot.planted and self.selected_seed and self._can_afford_seed(self.selected_seed):
                 self._plant_slot(slot, self.selected_seed)
 
     def _seed_at_pos(self, pos: tuple[int, int]) -> PlantType | None:
@@ -485,11 +634,40 @@ class Game:
                 return slot
         return None
 
-    def _plant_slot(self, slot: PlantSlot, seed: PlantType):
+    def _seed_item_requirement(self, seed: PlantType) -> tuple[str, int] | None:
+        item_name = getattr(seed, "seed_item_name", None)
+        if not item_name:
+            return None
+        return (str(item_name), 1)
+
+    def _can_afford_seed(self, seed: PlantType) -> bool:
         if self.money < seed.cost:
+            return False
+        req = self._seed_item_requirement(seed)
+        if not req:
+            return True
+        item_name, count = req
+        return self.inventory.get(item_name, 0) >= count
+
+    def _pay_for_seed(self, seed: PlantType) -> bool:
+        if not self._can_afford_seed(seed):
+            return False
+
+        self.money -= seed.cost
+        req = self._seed_item_requirement(seed)
+        if req:
+            item_name, count = req
+            remaining = self.inventory.get(item_name, 0) - count
+            if remaining > 0:
+                self.inventory[item_name] = remaining
+            else:
+                self.inventory.pop(item_name, None)
+        return True
+
+    def _plant_slot(self, slot: PlantSlot, seed: PlantType):
+        if not self._pay_for_seed(seed):
             return
         slot.plant(seed)
-        self.money -= seed.cost
 
     def _harvest(self, slot: PlantSlot):
         if not slot.seed:

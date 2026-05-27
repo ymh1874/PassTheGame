@@ -67,3 +67,70 @@ PLANT_GROWTH_RATE_GOOD = 1.0
 PLANT_GROWTH_RATE_BAD = 0.4
 PLANT_SPRITE_W = 64
 PLANT_SPRITE_H = 96
+
+# ─── In-game time ────────────────────────────────────────────────────────────
+# We use an in-game "week" to schedule the Storm Titan. This is intentionally
+# tunable so contributors can make the cadence faster/slower.
+IN_GAME_DAY_SECONDS = 60.0
+IN_GAME_DAYS_PER_WEEK = 7
+IN_GAME_WEEK_SECONDS = IN_GAME_DAY_SECONDS * IN_GAME_DAYS_PER_WEEK
+
+# ─── Storm Titan (boss) ──────────────────────────────────────────────────────
+STORM_TITAN_WIDTH = 260
+STORM_TITAN_HEIGHT = 130
+STORM_TITAN_Y = 32
+
+# 5 reflected blocks defeats the boss.
+STORM_TITAN_MAX_HP = 5
+# Spawn twice per in-game week.
+STORM_TITAN_SPAWN_EVERY_SECONDS = IN_GAME_WEEK_SECONDS / 2
+
+STORM_TITAN_STRIKE_COOLDOWN_SECONDS = 3.0
+STORM_TITAN_STRIKE_WARNING_SECONDS = 1.0
+
+# When the boss is defeated it lingers briefly, then leaves.
+STORM_TITAN_RETREAT_SECONDS = 3.0
+
+# Reward is delivered as an inventory item the player can plant.
+STORM_TITAN_REWARD_ITEM_NAME = "Storm Seed"
+STORM_TITAN_REWARD_ITEM_COUNT = 1
+
+# Plant effect for an unblocked strike.
+STORM_TITAN_LIGHTNING_KILLS_PLANT = True
+
+# Visuals (fallback drawing if PNGs are missing)
+STORM_TITAN_IMAGE_FILENAME = "storm_titan.png"
+
+# ─── Cyclone Titan (boss) ───────────────────────────────────────────────────
+CYCLONE_TITAN_WIDTH = 340
+CYCLONE_TITAN_HEIGHT = 180
+CYCLONE_TITAN_Y = 18
+
+# Bigger boss with a bigger health bar.
+CYCLONE_TITAN_MAX_HP = 12
+CYCLONE_TITAN_SPAWN_EVERY_SECONDS = IN_GAME_WEEK_SECONDS
+
+CYCLONE_TITAN_STRIKE_COOLDOWN_SECONDS = 2.4
+CYCLONE_TITAN_STRIKE_WARNING_SECONDS = 0.9
+
+CYCLONE_TITAN_RETREAT_SECONDS = 3.5
+
+# Unblocked strikes one-shot plants and also hit nearby slots.
+CYCLONE_TITAN_AOE_RADIUS_SLOTS = 1
+
+# Visuals (fallback drawing if PNGs are missing)
+CYCLONE_TITAN_IMAGE_FILENAME = "cyclone_titan.png"
+
+# ─── Critters (squirrel/snake) ─────────────────────────────────────────────
+# Spawn rolls are checked at a fixed interval while the game is unpaused.
+CRITTER_SPAWN_CHECK_SECONDS = 1.0
+
+SQUIRREL_SPAWN_CHANCE = 1 / 20
+SQUIRREL_SPEED_PX_PER_SEC = 180.0
+SQUIRREL_EAT_SECONDS = 3.0
+SQUIRREL_IMAGE_FILENAME = "squirrel.png"
+
+SNAKE_SPAWN_CHANCE = 1 / 50
+SNAKE_SPEED_PX_PER_SEC = 240.0
+SNAKE_EAT_SECONDS = 4.0
+SNAKE_IMAGE_FILENAME = "snake.png"

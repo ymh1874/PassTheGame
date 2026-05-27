@@ -94,6 +94,19 @@ class PlantSlot:
             self._growth_frames = 0
             self.growth_stage += 1
 
+    def strike_lightning(self):
+        """Apply an instant lightning strike to this slot.
+
+        Kept intentionally small so other systems (bosses, events, etc.) can
+        damage plants without rewriting the core update loop.
+        """
+        if not self.seed or self.dead:
+            return
+        self.dead = True
+        # Optional flavor: a struck plant is dried out and over-sunned.
+        self.water = 0.0
+        self.sun = 100.0
+
     def draw(
         self,
         surface: pygame.Surface,

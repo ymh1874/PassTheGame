@@ -37,6 +37,7 @@ class PlantType(ABC):
     regrow_to_stage: int | None = None
     sprite_w: int | None = None
     sprite_h: int | None = None
+    seed_item_name: str | None = None
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}()"
@@ -122,3 +123,30 @@ class Apple(PlantType):
     regrow_to_stage = 3 #tree will go back to stage 3 after harvest
     sprite_w = 170
     sprite_h = 280 # since apple trees are taller than carrots!
+
+
+class StormSeed(PlantType):
+    """Rare seed dropped by the Storm Titan.
+
+    This seed is planted by consuming an inventory item (seed_item_name) rather
+    than spending money.
+    """
+
+    name = "Storm Seed"
+    cost = 0
+    seed_item_name = "Storm Seed"
+    product_name = "Storm Crystal"
+    growth_stages = 4
+    seconds_per_stage = 5.5
+    water_min = 40.0
+    water_max = 85.0
+    sun_min = 15.0
+    sun_max = 65.0
+    base_color = (170, 120, 220)
+    icon_filename = "storm_seed_icon.png"
+    phase_filenames = [
+        "storm_seed_phase1.png",
+        "storm_seed_phase2.png",
+        "storm_seed_phase3.png",
+        "storm_seed_phase4.png",
+    ]
