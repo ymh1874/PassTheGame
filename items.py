@@ -16,4 +16,8 @@ ITEMS: dict[str, Item] = {
     "Apple": Item(name="Apple", sell_price=3),
     "Storm Seed": Item(name="Storm Seed", sell_price=40),
     "Storm Crystal": Item(name="Storm Crystal", sell_price=120),
+    "Compost": Item(name="Compost", sell_price=3),
+    "Fur": Item(name="Fur", sell_price=8),
+    "Venom": Item(name="Venom", sell_price=16),
+    "Cyclone Crystal": Item(name="Cyclone Crystal", sell_price=180),
 }

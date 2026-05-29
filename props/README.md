@@ -11,6 +11,9 @@ otherwise it falls back to the built-in drawn versions.
 | lettuce_icon.png | game.py | 64 × 64 px     | Square PNG, mature plant icon      |
 | tomato_icon.png  | game.py | 64 × 64 px     | Square PNG, mature plant icon      |
 | apple_icon.png  | game.py | 64 × 64 px     | Square PNG, mature plant icon      |
+| compost_icon.png | game.py | 64 × 64 px     | Tool icon (optional; UI falls back to letter) |
+| scarecrow_icon.png | game.py | 64 × 64 px   | Tool icon (optional; UI falls back to letter) |
+| lightning_rod_icon.png | game.py | 64 × 64 px | Tool icon (optional; UI falls back to letter) |
 | ui_panel.png | game.py  | 240 × 600 px     | Right-side UI panel background     |
 | dead_plant.png | game.py | 64 × 96 px     | Dead plant sprite                  |
 | carrot_phase1.png | game.py | 64 × 96 px     | Plant growth phase 1               |
@@ -37,6 +40,14 @@ otherwise it falls back to the built-in drawn versions.
 | squirrel.png | critters.py | 56 × 28 px | Chipmunk thief sprite (optional; auto-scaled) |
 | snake.png | critters.py | 70 × 18 px | Snake thief sprite (optional; auto-scaled) |
 
+| sfx_harvest.ogg | audio | n/a | Harvest sound (optional; OGG/WAV) |
+| sfx_critter_spawn.ogg | audio | n/a | Critter spawn sound (optional) |
+| sfx_critter_scare.ogg | audio | n/a | Critter scare/away sound (optional) |
+| sfx_boss_warning.ogg | audio | n/a | Boss warning sound (optional) |
+| sfx_boss_strike.ogg | audio | n/a | Boss strike sound (optional) |
+| sfx_boss_block.ogg | audio | n/a | Boss blocked strike sound (optional) |
+| sfx_boss_perfect.ogg | audio | n/a | Perfect-block bonus sound (optional) |
+
 All images should be **PNG with an alpha channel** so transparency works
 correctly against the sky background.
 
@@ -44,6 +55,12 @@ Note on sprite sizes: most plant phases are 64 × 96, but you can declare
 custom dimensions using sprite_w sprite_h in their PlantType subclass.
 
 If a seed icon is missing, the UI falls back to a letter placeholder.
+
+Tool icons are also optional — if they're missing, the Tools buttons will show a
+letter placeholder.
+
+Scarecrow note: the scarecrow itself is currently drawn as a simple in-game
+placeholder when placed in an empty slot (no sprite required).
 
 *Note: There are no real rules as long as your code works*
 

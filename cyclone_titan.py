@@ -37,7 +37,8 @@ class CycloneTitanConfig(StormTitanConfig):
     y: int = CYCLONE_TITAN_Y
 
     # No default inventory reward.
-    reward_item_count: int = 0
+    reward_item_name: str = "Cyclone Crystal"
+    reward_item_count: int = 1
 
     # Stronger attack: one-shot target + nearby slots.
     aoe_radius_slots: int = CYCLONE_TITAN_AOE_RADIUS_SLOTS
@@ -62,6 +63,22 @@ class CycloneTitan(StormTitan):
 
     def __init__(self, config: CycloneTitanConfig | None = None, *, rng=None):
         super().__init__(config or CycloneTitanConfig(), rng=rng)
+
+    @staticmethod
+    def _blocking_cloud_for_x(x: int, clouds: Iterable[object]):
+        """Cyclone requires raining clouds to block a strike."""
+        blockers: list[object] = []
+        for cloud in clouds:
+            rect = getattr(cloud, "rect", None)
+            if not isinstance(rect, pygame.Rect):
+                continue
+            if rect.left <= x <= rect.right and getattr(cloud, "raining", False):
+                blockers.append(cloud)
+
+        if not blockers:
+            return None
+
+        return min(blockers, key=lambda c: c.rect.top)
 
     @staticmethod
     def _draw_fallback_surface(w: int, h: int) -> pygame.Surface:
