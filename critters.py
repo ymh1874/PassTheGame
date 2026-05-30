@@ -20,6 +20,14 @@ from settings import (
     SNAKE_EAT_SECONDS,
     SNAKE_IMAGE_FILENAME,
 )
+from settings import (
+    CHIPMUNK_DROP_ITEM_NAME,
+    CHIPMUNK_DROP_CHANCE,
+    CHIPMUNK_DROP_COUNT,
+    SNAKE_DROP_ITEM_NAME,
+    SNAKE_DROP_CHANCE,
+    SNAKE_DROP_COUNT,
+)
 
 PROPS_DIR = os.path.join(os.path.dirname(__file__), "props")
 
@@ -72,6 +80,9 @@ class PlantThief:
         self._eating_remaining = 0.0
 
         self._flee_x: float | None = None
+
+        # If the critter generated a drop item (name, count), store here
+        self._last_drop: tuple[str, int] | None = None
 
     # ── public ────────────────────────────────────────────────────────────
     @property
@@ -230,6 +241,17 @@ class PlantThief:
         clear_fn = getattr(slot, "clear", None)
         if callable(clear_fn):
             clear_fn()
+            # roll for a possible drop when stealing a plant
+            self._last_drop = None
+            try:
+                if isinstance(self, ChipmunkThief):
+                    if self._rng.random() < float(CHIPMUNK_DROP_CHANCE):
+                        self._last_drop = (str(CHIPMUNK_DROP_ITEM_NAME), int(CHIPMUNK_DROP_COUNT))
+                elif isinstance(self, SnakeThief):
+                    if self._rng.random() < float(SNAKE_DROP_CHANCE):
+                        self._last_drop = (str(SNAKE_DROP_ITEM_NAME), int(SNAKE_DROP_COUNT))
+            except Exception:
+                self._last_drop = None
             return
         # fallback: clear the most important fields
         try:

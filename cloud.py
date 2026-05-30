@@ -77,6 +77,8 @@ class Cloud(pygame.sprite.Sprite):
             self.image = self._draw_cloud_surface()
 
         self.rect = self.image.get_rect(topleft=start_pos)
+        # Track when the cloud last toggled rain intensity (for perfect-block timing)
+        self._last_rain_toggled_at: float | None = None
 
     # ── fallback drawn cloud ───────────────────────────────────────────────────
     @staticmethod
@@ -132,6 +134,10 @@ class Cloud(pygame.sprite.Sprite):
         else:
             self.rain_intensity = int(RAIN_INTENSITY_OFF)
         self._sync_raindrops_to_intensity()
+        try:
+            self._last_rain_toggled_at = pygame.time.get_ticks() / 1000.0
+        except Exception:
+            self._last_rain_toggled_at = None
 
     def _sync_raindrops_to_intensity(self):
         if not self.raining:

@@ -144,6 +144,10 @@ class Game:
         self._ui_panel_image: pygame.Surface | None = None
         self._coin_icon: pygame.Surface | None = None
         self._dead_plant_image: pygame.Surface | None = None
+        # sell confirmation UI
+        self._pending_sell_total: int | None = None
+        self._show_sell_confirm: bool = False
+        self._sell_confirm_buttons: dict[str, pygame.Rect] = {}
 
         self.slots = self._create_slots()
         self._load_seed_icons()
@@ -343,6 +347,8 @@ class Game:
         self._draw_hud()
         if self.paused:
             self._draw_pause_window()
+        if self._show_sell_confirm:
+            self._draw_sell_confirm()
         pygame.display.flip()
 
     def _draw_hud(self):
@@ -471,6 +477,15 @@ class Game:
     def _update_critters(self, dt: float) -> None:
         for critter in self._critters:
             critter.update(dt, slots=self.slots, field_rect=self._field_rect, ground_rect=self._ground_rect)
+            # collect any drop produced by the critter (e.g., Fur, Venom)
+            drop = getattr(critter, "_last_drop", None)
+            if drop:
+                try:
+                    name, count = drop
+                    self.inventory[name] = self.inventory.get(name, 0) + int(count)
+                except Exception:
+                    pass
+                critter._last_drop = None
 
     def _draw_critters(self) -> None:
         for critter in self._critters:
@@ -779,6 +794,23 @@ class Game:
         sell_rect = sell_text.get_rect(center=self._sell_button.center)
         self.screen.blit(sell_text, sell_rect)
 
+        # Market featured/discounted display (compact)
+        m_y = self._sell_button.top - 68
+        if self._market_featured_item or self._market_discounted_item:
+            m_title = self._small_font.render("Market", True, (220, 220, 160))
+            self.screen.blit(m_title, (left, m_y))
+            m_y += 18
+            if self._market_featured_item:
+                hot = f"Hot: {self._market_featured_item} x{MARKET_FEATURED_MULT:g}"
+                hot_s = self._small_font.render(hot, True, (230, 200, 120))
+                self.screen.blit(hot_s, (left, m_y))
+                m_y += 18
+            if self._market_discounted_item:
+                cold = f"Cold: {self._market_discounted_item} x{MARKET_DISCOUNT_MULT:g}"
+                cold_s = self._small_font.render(cold, True, (180, 200, 255))
+                self.screen.blit(cold_s, (left, m_y))
+                m_y += 18
+
     def _draw_hover_tooltip(self):
         if not self._hover_slot or not self._hover_slot.planted:
             return
@@ -827,6 +859,24 @@ class Game:
         return
 
     def _handle_farm_event(self, event: pygame.event.Event):
+        # If a sell confirmation overlay is active, limit interactions to it.
+        if self._show_sell_confirm:
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                pos = event.pos
+                # Confirm
+                confirm = self._sell_confirm_buttons.get("confirm")
+                cancel = self._sell_confirm_buttons.get("cancel")
+                if confirm and confirm.collidepoint(pos):
+                    self._do_sell_inventory()
+                    self._show_sell_confirm = False
+                    self._pending_sell_total = None
+                    return
+                if cancel and cancel.collidepoint(pos):
+                    self._show_sell_confirm = False
+                    self._pending_sell_total = None
+                    return
+            return
+
         if event.type == pygame.MOUSEMOTION:
             self._hover_slot = self._slot_at_pos(event.pos)
             return
@@ -970,6 +1020,40 @@ class Game:
             return None
         return (str(item_name), 1)
 
+    def _draw_sell_confirm(self):
+        # Semi-opaque overlay
+        w, h = 420, 140
+        rect = pygame.Rect((SCREEN_W - w) // 2, (SCREEN_H - h) // 2, w, h)
+        overlay = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.rect(overlay, (20, 20, 30, 220), overlay.get_rect(), border_radius=8)
+        title = self._font.render("Confirm Sell All", True, (240, 240, 240))
+        overlay.blit(title, (16, 12))
+        total_text = f"Total: ${int(self._pending_sell_total or 0)}"
+        total_s = self._font.render(total_text, True, (220, 220, 180))
+        overlay.blit(total_s, (16, 48))
+
+        # Buttons
+        btn_w, btn_h = 140, 36
+        spacing = 18
+        bx = w - btn_w - 16
+        by = h - btn_h - 16
+        confirm = pygame.Rect(bx, by, btn_w, btn_h)
+        cancel = pygame.Rect(bx - (btn_w + spacing), by, btn_w, btn_h)
+        pygame.draw.rect(overlay, (60, 140, 70), confirm, border_radius=8)
+        pygame.draw.rect(overlay, (140, 80, 60), cancel, border_radius=8)
+        c_text = self._small_font.render("Confirm", True, (240, 240, 240))
+        x_text = self._small_font.render("Cancel", True, (240, 240, 240))
+        overlay.blit(c_text, c_text.get_rect(center=confirm.center))
+        overlay.blit(x_text, x_text.get_rect(center=cancel.center))
+
+        # store button rects in screen coords
+        screen_confirm = confirm.move(rect.left, rect.top)
+        screen_cancel = cancel.move(rect.left, rect.top)
+        self._sell_confirm_buttons["confirm"] = screen_confirm
+        self._sell_confirm_buttons["cancel"] = screen_cancel
+
+        self.screen.blit(overlay, rect.topleft)
+
     def _can_afford_seed(self, seed: PlantType) -> bool:
         if self.money < seed.cost:
             return False
@@ -1050,6 +1134,7 @@ class Game:
             slot.regrow(slot.seed.regrow_to_stage)
 
     def _sell_inventory(self):
+        # Compute the sell total and show confirmation overlay.
         total = 0
         for name, count in self.inventory.items():
             item = self.items.get(name)
@@ -1058,5 +1143,12 @@ class Game:
                 total += int(round(item.sell_price * mult)) * count
         if total == 0:
             return
-        self.money += total
+        self._pending_sell_total = int(total)
+        self._show_sell_confirm = True
+
+    def _do_sell_inventory(self):
+        if not self._pending_sell_total:
+            return
+        self.money += int(self._pending_sell_total)
         self.inventory = {}
+        self._pending_sell_total = None

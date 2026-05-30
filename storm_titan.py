@@ -23,6 +23,8 @@ from settings import (
     STORM_TITAN_REWARD_ITEM_COUNT,
     STORM_TITAN_LIGHTNING_KILLS_PLANT,
     STORM_TITAN_IMAGE_FILENAME,
+    PERFECT_BLOCK_WINDOW_SECONDS,
+    PERFECT_BLOCK_BONUS_DAMAGE,
 )
 
 PROPS_DIR = os.path.join(os.path.dirname(__file__), "props")
@@ -406,7 +408,18 @@ class StormTitan(pygame.sprite.Sprite):
         self._bolt_points = bolt_points
 
         if blocking_cloud is not None:
-            self._hp = max(0, self._hp - 1)
+            # Check for a "perfect block" — cloud started blocking shortly before strike.
+            is_perfect = False
+            try:
+                last = getattr(blocking_cloud, "_last_rain_toggled_at", None)
+                if last is not None:
+                    now = pygame.time.get_ticks() / 1000.0
+                    if now - float(last) <= float(PERFECT_BLOCK_WINDOW_SECONDS):
+                        is_perfect = True
+            except Exception:
+                is_perfect = False
+            damage = 1 + int(PERFECT_BLOCK_BONUS_DAMAGE) if is_perfect else 1
+            self._hp = max(0, self._hp - int(damage))
             if self._hp <= 0:
                 self._begin_retreat()
         else:
