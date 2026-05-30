@@ -28,7 +28,6 @@ from settings import (
     LIGHTNING_ROD_COST, LIGHTNING_ROD_CHARGES,
 )
 from cloud import Cloud
-import audio
 from sun import Sun
 from moon import Moon
 from stars import Stars
@@ -157,11 +156,6 @@ class Game:
         self._load_tool_icons()
         self._load_plant_phases()
         self._load_dead_plant()
-        # Initialize optional SFX loader (safe if files are missing)
-        try:
-            audio.init(PROPS_DIR)
-        except Exception:
-            pass
 
     # ── main loop ─────────────────────────────────────────────────────────────
     def run(self):
@@ -400,6 +394,23 @@ class Game:
             self.screen.blit(shadow, (11, y + 1))
             self.screen.blit(surf,   (10, y))
             y += 22
+
+        # Flash 'Perfect Block!' when a perfect block was recently registered
+        now = pygame.time.get_ticks() / 1000.0
+        flash_duration = 1.2
+        perfect_shown = False
+        for boss in (self.storm_titan, self.cyclone_titan):
+            t = getattr(boss, "_last_perfect_at", None)
+            if t is not None and now - float(t) <= flash_duration:
+                msg = "Perfect Block!"
+                surf = self._font.render(msg, True, (255, 215, 0))
+                shadow = self._font.render(msg, True, (0, 0, 0))
+                sx = (self._width - surf.get_width()) // 2
+                sy = 40
+                self.screen.blit(shadow, (sx + 2, sy + 2))
+                self.screen.blit(surf, (sx, sy))
+                perfect_shown = True
+                break
 
     @staticmethod
     def _format_mmss(seconds: float) -> str:
@@ -1133,11 +1144,7 @@ class Game:
             return
         name = slot.seed.product_name
         self.inventory[name] = self.inventory.get(name, 0) + slot.seed.harvest_yield
-        try:
-            import audio as _audio
-            _audio.play("harvest")
-        except Exception:
-            pass
+        # SFX removed: no-op here (placeholder for future audio)
         if slot.seed.regrow_to_stage is None:
             slot.clear()
         else:

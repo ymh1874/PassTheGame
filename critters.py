@@ -98,11 +98,7 @@ class PlantThief:
         if not self.active:
             return
         self._begin_flee(field_rect=field_rect)
-        try:
-            import audio as _audio
-            _audio.play("critter_scare")
-        except Exception:
-            pass
+        # audio removed; placeholder for future sound effects
 
     def update(self, dt: float, *, slots: list[object], field_rect: pygame.Rect, ground_rect: pygame.Rect) -> None:
         if dt <= 0.0:
@@ -198,11 +194,7 @@ class PlantThief:
         self._flee_x = None
 
         self._state = self.STATE_MOVING
-        try:
-            import audio as _audio
-            _audio.play("critter_spawn")
-        except Exception:
-            pass
+        # audio removed; placeholder for future sound effects
 
     def _flip_if_needed(self) -> None:
         # crude flip based on direction so sprites face inward

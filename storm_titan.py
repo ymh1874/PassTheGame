@@ -420,6 +420,12 @@ class StormTitan(pygame.sprite.Sprite):
                 is_perfect = False
             damage = 1 + int(PERFECT_BLOCK_BONUS_DAMAGE) if is_perfect else 1
             self._hp = max(0, self._hp - int(damage))
+            # expose perfect-block timing for HUD feedback
+            try:
+                if is_perfect:
+                    self._last_perfect_at = pygame.time.get_ticks() / 1000.0
+            except Exception:
+                pass
             if self._hp <= 0:
                 self._begin_retreat()
         else:

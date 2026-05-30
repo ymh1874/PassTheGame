@@ -20,4 +20,9 @@ ITEMS: dict[str, Item] = {
     "Fur": Item(name="Fur", sell_price=8),
     "Venom": Item(name="Venom", sell_price=16),
     "Cyclone Crystal": Item(name="Cyclone Crystal", sell_price=180),
+    "Mushroom": Item(name="Mushroom", sell_price=6),
+    "Cactus Fruit": Item(name="Cactus Fruit", sell_price=14),
+    "Rice": Item(name="Rice", sell_price=5),
+    "Night Bloom": Item(name="Night Bloom", sell_price=40),
+    "Pumpkin": Item(name="Pumpkin", sell_price=22),
 }
