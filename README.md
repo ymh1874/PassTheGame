@@ -136,7 +136,19 @@ Add your name and 1–2 lines about what you added below.
   Added night (transition to moon and stars), second cloud (WASD keys), "wind", pausing, apple tree that regrows to previous phase after harvesting apples
 
 - **Yousef**
-  Added Storm Titan + Cyclone Titan boss fights (timed spawns, health bars, blockable lightning) + chipmunk/snake plant-thief critters. Cheat keys: **B/C** toggle bosses, **V/N** spawn critters. Art needed for the special boss plant: `storm_seed_icon.png` + `storm_seed_phase1.png`–`storm_seed_phase4.png`.
+  Added Storm Titan + Cyclone Titan boss fights (timed spawns, health bars, blockable lightning) + chipmunk/snake plant-thief critters. Cheat keys: **B/C** toggle bosses, **V/N** spawn critters.
+
+  - Implemented a Tools system (right-panel UI): `Compost`, `Scarecrow`, `Lightning Rod` with placement/use logic and UI buttons.
+  - Added `Compost` as an inventory item and tool; clearing dead plants yields Compost; Compost applies a time-limited growth boost to a slot.
+  - Scarecrow: placeable on empty slots (protects nearby slots); drawn as an in-game placeholder if no sprite is provided.
+  - Lightning Rod: placeable on planted slots; grants charges that prevent plant death from boss lightning.
+  - Introduced Season/World time tracking (day/week/season) and applied season multipliers to plant growth, water loss, and sun gain.
+  - Added a Market system: daily featured/discounted items (applies multipliers at sell-time) and HUD display for market state.
+  - Added Weather framework and events (Heatwave, Drizzle, Gusts) and rain intensity modes (Off / Light / Heavy); heavy rain increases growth rate while drizzle provides water bonuses.
+  - Registered new items in `items.py`: `Compost`, `Fur`, `Venom`, and `Cyclone Crystal` (sellable rewards / drops).
+  - Updated `props/README.md` with tool icon placeholders and SFX filenames (harvest, critter, boss cues). Audio is optional and non-fatal if missing.
+  - Cyclone Titan now drops `Cyclone Crystal` on defeat and requires a *raining* cloud over the target x-position to block its strikes (different block condition from Storm Titan).
+  - Integrated compost boost and heavy-rain growth multiplier into plant simulation; extended `PlantSlot` with fields for compost, scarecrow, and lightning rod charges.
 
 ---
 
